@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>갈피 다운로드 · Y Labs</title>
+<style>
+:root{color-scheme:light;--bg:#f3f5ef;--ink:#243c32;--muted:#64756b;--line:#dce4da;--green:#416456}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.7 system-ui,"Malgun Gothic",sans-serif}
+main{max-width:940px;margin:auto;padding:48px 24px}header{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.brand{font-size:24px;font-weight:700;letter-spacing:3px}.pill{font-size:12px;border:1px solid var(--line);border-radius:30px;padding:5px 12px;color:var(--muted)}
+h1{font-size:clamp(30px,5vw,46px);line-height:1.3;margin:40px 0 14px}p{color:var(--muted)}a{color:var(--green)}
+.actions{display:flex;flex-wrap:wrap;gap:12px;margin:26px 0 34px}.button,button{font:inherit;text-decoration:none;border:1px solid var(--line);border-radius:9px;padding:10px 18px;cursor:pointer;color:var(--ink);background:white}
+.primary{color:white;background:var(--green);border-color:var(--green)}.button:focus-visible,button:focus-visible{outline:3px solid #c59950;outline-offset:3px}
+.button[aria-disabled=true]{pointer-events:none;opacity:.6}.stats{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.card{background:white;padding:24px;border:1px solid var(--line);border-radius:15px}.label{font-size:14px;color:var(--muted)}.number{font-size:48px;line-height:1.4;font-weight:700;font-variant-numeric:tabular-nums}
+.small{font-size:13px}.notice{border-left:3px solid #c59950;padding-left:16px;margin:24px 0}.row{display:flex;gap:16px;justify-content:space-between;align-items:center}h2{font-size:22px}
+.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:13px 12px;border-bottom:1px solid var(--line)}td:last-child,th:last-child{text-align:right}
+footer{margin-top:36px;border-top:1px solid var(--line);padding-top:20px;color:var(--muted);font-size:13px}.error{color:#9c4138}
+@media(max-width:560px){main{padding:28px 18px}.stats{grid-template-columns:1fr}.row{align-items:flex-start}h1{margin-top:32px}.card{padding:20px}}
+</style></head>
+<body><main>
+<header><div class="brand">갈피 <span class="small">· Y Labs</span></div><span class="pill">WINDOWS · 무료 베타</span></header>
+<h1>만화와 소설,<br>읽던 곳부터.</h1>
+<p>내 컴퓨터의 책을 모아 읽는 갈피. TXT 소설과 ZIP·CBZ 만화, 이미지 폴더를 지원합니다.<br>이름 수정, 저장한 갈피, 전체화면 읽기와 이어 읽기를 만나보세요.</p>
+<div class="actions">
+<a id="download" class="button primary" href="https://github.com/SilnoonE/galpi/releases/download/v0.2.1/Galpi-0.2.1-Windows.zip">Windows ZIP 다운로드</a>
+<a class="button" href="https://github.com/SilnoonE/galpi/releases">버전·사용 안내</a>
+<a class="button" href="https://github.com/SilnoonE/galpi/issues">의견 보내기</a>
+</div>
+<div class="stats">
+<div class="card"><div class="label">전체 버전 ZIP 다운로드</div><div id="total" class="number">—</div><div class="small">중복 다운로드를 포함한 누적 횟수</div></div>
+<div class="card"><div class="label">최신 배포 파일</div><div id="version" class="number" style="font-size:32px">불러오는 중</div><div id="latest-count" class="small">GitHub 공개 API에서 확인합니다.</div></div>
+</div>
+<p class="notice small">다운로드 횟수는 실제 사용자 수나 실행 횟수가 아닙니다. 갈피는 책 내용과 읽기 기록을 서버로 보내지 않으며, 이 페이지는 GitHub의 공개 다운로드 통계만 조회합니다.</p>
+<div class="row"><h2>버전별 다운로드</h2><button id="refresh" type="button">통계 새로고침</button></div>
+<p id="status" class="small" role="status" aria-live="polite">통계를 불러오는 중입니다.</p>
+<div class="table-wrap"><table><thead><tr><th>버전</th><th>파일</th><th>다운로드</th></tr></thead><tbody id="rows"></tbody></table></div>
+<p class="small">실행 방법: ZIP 압축 해제 → Galpi.exe 실행. Windows 10/11 · .NET Framework 4.8.<br>코드 서명 전 베타입니다. PDF·EPUB·RAR/CBR은 지원하지 않습니다.<br>이 저장소는 배포용입니다. GitHub의 Source code ZIP/TAR에는 안내 자료만 들어 있습니다.</p>
+<footer>© 2026 Y Labs · <a href="https://play.google.com/store/apps/dev?id=7140068712327640403">공식 Google Play 페이지</a> · <a href="https://github.com/SilnoonE/galpi">GitHub</a></footer>
+</main><script>
+'use strict';
+var refreshing=false;
+async function loadCounts(){
+ if(refreshing)return;refreshing=true;
+ var refresh=document.getElementById('refresh'),status=document.getElementById('status');refresh.disabled=true;status.className='small';status.textContent='GitHub에서 확인하는 중입니다.';
+ try{
+  var files=[],page=1;
+  while(true){
+   var response=await fetch('https://api.github.com/repos/SilnoonE/galpi/releases?per_page=100&page='+page,{headers:{Accept:'application/vnd.github+json'}});
+   if(!response.ok)throw new Error(response.status===403||response.status===429?'GitHub API 조회 제한에 도달했습니다. 잠시 후 다시 확인해 주세요.':'통계를 불러오지 못했습니다. 네트워크 연결을 확인해 주세요.');
+   var releases=await response.json();if(!Array.isArray(releases))throw new Error('통계 응답을 확인할 수 없습니다.');
+   releases.filter(function(r){return !r.draft}).forEach(function(r){
+    (r.assets||[]).filter(function(a){return /^Galpi-.*-Windows\.zip$/i.test(a.name)&&a.state==='uploaded'}).forEach(function(a){files.push({version:r.tag_name,name:a.name,count:Number(a.download_count)||0,url:a.browser_download_url,date:r.published_at})});
+   });
+   if(releases.length<100)break;page++;
+  }
+  files.sort(function(a,b){return Date.parse(b.date)-Date.parse(a.date)});
+  document.getElementById('total').textContent=files.reduce(function(sum,a){return sum+a.count},0).toLocaleString('ko-KR')+'회';
+  var tbody=document.getElementById('rows');tbody.replaceChildren();
+  files.forEach(function(a){var tr=document.createElement('tr');[a.version,a.name,a.count.toLocaleString('ko-KR')+'회'].forEach(function(value){var td=document.createElement('td');td.textContent=value;tr.appendChild(td)});tbody.appendChild(tr)});
+  var latest=files[0],download=document.getElementById('download');
+  if(latest){document.getElementById('version').textContent=latest.version;document.getElementById('latest-count').textContent=latest.count.toLocaleString('ko-KR')+'회 다운로드';var u=new URL(latest.url);if(u.protocol==='https:'&&u.hostname==='github.com'){download.href=latest.url;download.removeAttribute('aria-disabled')}}
+  else{document.getElementById('version').textContent='아직 없음';document.getElementById('latest-count').textContent='배포 파일이 없습니다.';download.setAttribute('aria-disabled','true')}
+  status.textContent='확인 시각: '+new Date().toLocaleString('ko-KR',{timeZone:'Asia/Seoul'})+' (한국 시간) · GitHub 반영 지연이 있을 수 있습니다.';
+ }catch(error){status.className='small error';status.textContent=error.message;document.getElementById('version').textContent=document.getElementById('version').textContent==='불러오는 중'?'확인 불가':document.getElementById('version').textContent;}
+ finally{refreshing=false;refresh.disabled=false}
+}
+document.getElementById('refresh').addEventListener('click',loadCounts);loadCounts();
+</script></body></html>
